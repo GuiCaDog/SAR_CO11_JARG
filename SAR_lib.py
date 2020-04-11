@@ -183,7 +183,7 @@ class SAR_Project:
             for token in tokens:
                 self.index[token] = (self.index[token].get(token, [])) + [idNoticia]
             numNoticia = numNoticia + 1
-
+            #hmmm
         
 
 
