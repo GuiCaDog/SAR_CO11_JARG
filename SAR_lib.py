@@ -181,7 +181,7 @@ class SAR_Project:
             # COMPLETAR: indexar el contenido 'content'
             tokens = self.tokenize(content)
             for token in tokens:
-                index[token] = (index[token].get(token, [])) + [idNoticia]
+                self.index[token] = (self.index[token].get(token, [])) + [idNoticia]
             numNoticia = numNoticia + 1
 
         
@@ -529,8 +529,7 @@ class SAR_Project:
         return: la lista de resultados ordenada
 
         """
-
-        pass
+        return []
         
         ###################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE RANKING ##
