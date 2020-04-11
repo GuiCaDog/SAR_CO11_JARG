@@ -50,7 +50,7 @@ class SAR_Project:
         self.show_snippet = False # valor por defecto, se cambia con self.set_snippet()
         self.use_stemming = False # valor por defecto, se cambia con self.set_stemming()
         self.use_ranking = False  # valor por defecto, se cambia con self.set_ranking()
-
+        self.numDoc = 1 # Contador del documento
 
     ###############################
     ###                         ###
@@ -147,6 +147,7 @@ class SAR_Project:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
+                    self.numDoc = self.numDoc + 1
 
         ##########################################
         ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
@@ -172,31 +173,27 @@ class SAR_Project:
         with open(filename) as fh:
             jlist = json.load(fh)
         #COMPLETAR: ASIGNAR IDENTIFICADOR AL FICHER 'filename'
+        numNoticia = 1
         for new in jlist:
+            idNoticia = 'D'+self.numDoc +', N'+ numNoticia
             # COMPLETAR: asignar identificador a la noticia 'new'
             content = new['article']
             # COMPLETAR: indexar el contenido 'content'
-            #un canvi fasdfkajsdhfjkh
-            #kljasldkfjlkasdf :S :DDD adfadsf
-            #hola
+            tokens = self.tokenize(content)
+            for token in tokens:
+                index[token] = (index[token].get(token, [])) + [idNoticia]
+            numNoticia = numNoticia + 1
+
+        
+
+
+
         # "jlist" es una lista con tantos elementos como noticias hay en el fichero,
         # cada noticia es un diccionario con los campos:
         #      "title", "date", "keywords", "article", "summary"
         #
         # En la version basica solo se debe indexar el contenido "article"
-        #
-        #
-        #
-        #
-        #################
-        ###  
-        #en el funcionament basic sols hem de indexar article (per nom de article)
-        
-        #Per cada element en jlist,  
-        # 
-        # 
-        # ###
-        #################
+     
 
 
 
