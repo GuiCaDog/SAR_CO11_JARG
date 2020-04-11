@@ -187,7 +187,7 @@ class SAR_Project:
         
 
 
-
+        #hahahaha
         # "jlist" es una lista con tantos elementos como noticias hay en el fichero,
         # cada noticia es un diccionario con los campos:
         #      "title", "date", "keywords", "article", "summary"
