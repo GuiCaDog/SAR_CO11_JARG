@@ -51,6 +51,8 @@ class SAR_Project:
         self.use_stemming = False # valor por defecto, se cambia con self.set_stemming()
         self.use_ranking = False  # valor por defecto, se cambia con self.set_ranking()
         self.numDoc = 1 # Contador del documento
+        self.totalNoticias = 0
+        
 
     ###############################
     ###                         ###
@@ -148,7 +150,6 @@ class SAR_Project:
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
                     self.numDoc = self.numDoc + 1
-
         ##########################################
         ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
         ##########################################
@@ -175,13 +176,21 @@ class SAR_Project:
         #COMPLETAR: ASIGNAR IDENTIFICADOR AL FICHER 'filename'
         numNoticia = 1
         for new in jlist:
-            idNoticia = 'D'+self.numDoc +', N'+ numNoticia
+            self.totalNoticias = self.totalNoticias + 1
+            idNoticia = str(self.numDoc) +','+ str(numNoticia)
             # COMPLETAR: asignar identificador a la noticia 'new'
             content = new['article']
             # COMPLETAR: indexar el contenido 'content'
             tokens = self.tokenize(content)
             for token in tokens:
-                self.index[token] = (self.index[token].get(token, [])) + [idNoticia]
+                tokensIndex = (self.index.get(token, []))
+                if len(tokensIndex) == 0:
+                    self.index[token] = tokensIndex + [idNoticia]
+                else:    
+                    ultim = tokensIndex[len(tokensIndex)-1]
+                    
+                    if ultim != idNoticia:
+                        self.index[token] = tokensIndex + [idNoticia]
             numNoticia = numNoticia + 1
             #hmmm
         
@@ -252,6 +261,13 @@ class SAR_Project:
         Muestra estadisticas de los indices
         
         """
+        print("Total noticias: "+str(self.totalNoticias))
+        print("Total documentos: "+str(self.numDoc))
+        print("Total tokens distintos: "+str(len(self.index.keys())))
+
+        
+        
+        
         pass
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
@@ -291,7 +307,32 @@ class SAR_Project:
 
         if query is None or len(query) == 0:
             return []
-
+        noticies = []
+        postingListToken = []
+        queryTokens=self.tokenizer.sub(' ', query).split()
+        a=False
+        n=False
+        o=False
+        for token in queryTokens:
+            if token == 'NOT':
+                n = True
+            elif token == 'AND':
+                a = True
+            elif token == 'OR':
+                o = True
+            else:
+                token = token.lower()
+                postingListToken = self.get_posting(token)
+                if n:
+                    postingListToken = self.reverse_posting(postingListToken)
+                    n = False
+                if a:    
+                    postingListToken = self.and_posting(noticies, postingListToken)
+                    a = False
+                if o:
+                    postingListToken = self.or_posting(noticies, postingListToken)
+                    o = False
+                noticies = postingListToken
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -316,7 +357,8 @@ class SAR_Project:
         return: posting list
 
         """
-        pass
+
+        return self.index.get(term, [])
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -396,7 +438,7 @@ class SAR_Project:
 
         """
         
-        pass
+        return []
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -416,7 +458,7 @@ class SAR_Project:
 
         """
         
-        pass
+        return []
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -437,7 +479,7 @@ class SAR_Project:
         """
 
         
-        pass
+        return[]
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
