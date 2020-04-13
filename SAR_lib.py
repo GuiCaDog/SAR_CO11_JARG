@@ -52,6 +52,8 @@ class SAR_Project:
         self.use_ranking = False  # valor por defecto, se cambia con self.set_ranking()
         self.numDoc = 1 # Contador del documento
         self.totalNoticias = 0
+        self.totalIdNoticias = []
+        self.indexID = {}
         
 
     ###############################
@@ -176,8 +178,12 @@ class SAR_Project:
         #COMPLETAR: ASIGNAR IDENTIFICADOR AL FICHER 'filename'
         numNoticia = 1
         for new in jlist:
+
+            idNoticia = str(self.numDoc) +'.'+ str(numNoticia)
+            self.indexID[idNoticia] = self.totalNoticias
             self.totalNoticias = self.totalNoticias + 1
-            idNoticia = str(self.numDoc) +','+ str(numNoticia)
+            self.totalIdNoticias = self.totalIdNoticias + [idNoticia]
+            
             # COMPLETAR: asignar identificador a la noticia 'new'
             content = new['article']
             # COMPLETAR: indexar el contenido 'content'
@@ -323,6 +329,7 @@ class SAR_Project:
             else:
                 token = token.lower()
                 postingListToken = self.get_posting(token)
+                #print(postingListToken)
                 if n:
                     postingListToken = self.reverse_posting(postingListToken)
                     n = False
@@ -333,6 +340,9 @@ class SAR_Project:
                     postingListToken = self.or_posting(noticies, postingListToken)
                     o = False
                 noticies = postingListToken
+   
+        #print(noticies)
+        print(len(noticies))
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -437,8 +447,21 @@ class SAR_Project:
         return: posting list con todos los newid exceptos los contenidos en p
 
         """
-        
-        return []
+        total = []
+        i = 0
+        j = 0
+        #print(len(self.totalIdNoticias))
+        while i < len(self.totalIdNoticias) and j < len(p):
+            
+            if self.totalIdNoticias[i] == p[j]:
+                j = j + 1
+            else:
+                total = total + [self.totalIdNoticias[i]]
+            i = i + 1
+        while i < len(self.totalIdNoticias):
+            total = total + [self.totalIdNoticias[i]]
+            i = i + 1
+        return total
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -457,8 +480,32 @@ class SAR_Project:
         return: posting list con los newid incluidos en p1 y p2
 
         """
-        
-        return []
+        total = []
+        i = 0
+        j = 0
+        salt = 5
+        p1 = self.idToindex(p1)
+        p2 = self.idToindex(p2)
+
+        while i < len(p1) and j < len(p2):
+            if  (p1[i]) == (p2[j]):
+                total = total + [p1[i]]
+                i = i + 1
+                j = j + 1
+            elif  (p1[i] <  p2[j]):
+                if i+salt < len(p1) and  (p1[i+salt]) <=  (p2[j]):
+                    while i+salt < len(p1) and  (p1[i+salt]) <=  (p2[j]):
+                        i = i + salt
+                else:
+                    i = i + 1
+            else:
+                if j+salt < len(p2) and  (p1[i]) >=  (p2[j + salt]):
+                    while j+salt < len(p2) and  (p1[i]) >=  (p2[j+salt]):
+                        j = j + salt
+                else:
+                    j = j + 1
+                
+        return self.indexToID(total)
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -477,9 +524,37 @@ class SAR_Project:
         return: posting list con los newid incluidos de p1 o p2
 
         """
+        total = []
+        i = 0
+        j = 0
+        p1 = self.idToindex(p1)
+        p2 = self.idToindex(p2)
 
+        while i < len(p1) and j < len(p2):
+            # print(p1[i])
+            # print(p2[j])
+            # print("----------")
+            if  (p1[i]) ==  (p2[j]):
+                total = total + [p1[i]]
+                i = i + 1
+                j = j + 1
+            elif  (p1[i]) <  (p2[j]):
+                total = total + [p1[i]]
+                i = i + 1
+               
+            else:
+                total = total + [p2[j]]
+                j = j + 1
+        while i < len(p1):
+            total = total + [p1[i]]
+            i = i + 1
+        while j < len(p2):
+            total = total + [p2[j]]
+            j = j + 1
+
+                
+        return self.indexToID(total)
         
-        return[]
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -505,6 +580,17 @@ class SAR_Project:
         ## COMPLETAR PARA TODAS LAS VERSIONES SI ES NECESARIO ##
         ########################################################
 
+    def idToindex(self, l):
+        indices = []
+        for item in l:
+            indices = indices + [self.indexID[item]]
+        return indices
+
+    def indexToID(self, l):
+        IDs = []
+        for item in l:
+            IDs = IDs + [self.totalIdNoticias[item]]
+        return IDs
 
 
 
