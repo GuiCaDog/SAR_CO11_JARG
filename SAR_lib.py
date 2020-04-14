@@ -43,14 +43,15 @@ class SAR_Project:
         self.ptindex = {} # hash para el indice permuterm.
         self.docs = {} # diccionario de terminos --> clave: entero(docid),  valor: ruta del fichero.
         self.weight = {} # hash de terminos para el pesado, ranking de resultados. puede no utilizarse
-        self.news = {} # hash de noticias --> clave entero (newid), valor: la info necesaria para diferencia la noticia dentro de su fichero
+        self.news = {} # hash de noticias --> clave entero (newid), valor: la info necesaria para diferenciar la noticia dentro de su fichero
         self.tokenizer = re.compile("\W+") # expresion regular para hacer la tokenizacion
+        self.elimina = re.compile("[AND|OR]")
         self.stemmer = SnowballStemmer('spanish') # stemmer en castellano
         self.show_all = False # valor por defecto, se cambia con self.set_showall()
         self.show_snippet = False # valor por defecto, se cambia con self.set_snippet()
         self.use_stemming = False # valor por defecto, se cambia con self.set_stemming()
         self.use_ranking = False  # valor por defecto, se cambia con self.set_ranking()
-        self.numDoc = 1 # Contador del documento
+        self.numDoc = 0 # Contador del documento
         self.totalNoticias = 0
         self.totalIdNoticias = []
         self.indexID = {}
@@ -151,7 +152,9 @@ class SAR_Project:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
+                    self.docs[self.numDoc] = fullname
                     self.numDoc = self.numDoc + 1
+        print(self.index)
         ##########################################
         ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
         ##########################################
@@ -176,13 +179,15 @@ class SAR_Project:
         with open(filename) as fh:
             jlist = json.load(fh)
         #COMPLETAR: ASIGNAR IDENTIFICADOR AL FICHER 'filename'
-        numNoticia = 1
+        numNoticia = 0
         for new in jlist:
 
-            idNoticia = str(self.numDoc) +'.'+ str(numNoticia)
-            self.indexID[idNoticia] = self.totalNoticias
+            
+            #idNoticia = str(self.numDoc) +'.'+ str(numNoticia)
+            #self.indexID[idNoticia] = self.totalNoticias
+            self.news[self.totalNoticias]=[self.numDoc, numNoticia]
             self.totalNoticias = self.totalNoticias + 1
-            self.totalIdNoticias = self.totalIdNoticias + [idNoticia]
+            #self.totalIdNoticias = self.totalIdNoticias + [idNoticia]
             
             # COMPLETAR: asignar identificador a la noticia 'new'
             content = new['article']
@@ -191,12 +196,12 @@ class SAR_Project:
             for token in tokens:
                 tokensIndex = (self.index.get(token, []))
                 if len(tokensIndex) == 0:
-                    self.index[token] = tokensIndex + [idNoticia]
+                    self.index[token] = tokensIndex + [self.totalNoticias]
                 else:    
                     ultim = tokensIndex[len(tokensIndex)-1]
                     
-                    if ultim != idNoticia:
-                        self.index[token] = tokensIndex + [idNoticia]
+                    if ultim != self.totalNoticias:
+                        self.index[token] = tokensIndex + [self.totalNoticias]
             numNoticia = numNoticia + 1
             #hmmm
         
@@ -267,11 +272,20 @@ class SAR_Project:
         Muestra estadisticas de los indices
         
         """
-        print("Total noticias: "+str(self.totalNoticias))
-        print("Total documentos: "+str(self.numDoc))
-        print("Total tokens distintos: "+str(len(self.index.keys())))
+        print("=====================================================")
+        print("Number of indexed days: "+str(self.numDoc))
+        print("-----------------------------------------------------")
+        print("Number of indexed news: "+str(self.totalNoticias))
+        print("-----------------------------------------------------")
+        print("TOKENS:")
+        print("\'article\': "+str(len(self.index.keys())))
+        print("-----------------------------------------------------")
+        print("Positional queries are NOT allowed.")
+        print("=====================================================")
 
-        
+                
+
+
         
         
         pass
@@ -329,7 +343,7 @@ class SAR_Project:
             else:
                 token = token.lower()
                 postingListToken = self.get_posting(token)
-                #print(postingListToken)
+                print(postingListToken)
                 if n:
                     postingListToken = self.reverse_posting(postingListToken)
                     n = False
@@ -343,6 +357,7 @@ class SAR_Project:
    
         #print(noticies)
         print(len(noticies))
+        return noticies
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -451,15 +466,15 @@ class SAR_Project:
         i = 0
         j = 0
         #print(len(self.totalIdNoticias))
-        while i < len(self.totalIdNoticias) and j < len(p):
+        while i < len(self.news.keys()) and j < len(p):
             
-            if self.totalIdNoticias[i] == p[j]:
+            if i == p[j]:
                 j = j + 1
             else:
-                total = total + [self.totalIdNoticias[i]]
+                total = total + [i]
             i = i + 1
-        while i < len(self.totalIdNoticias):
-            total = total + [self.totalIdNoticias[i]]
+        while i < len(self.news.keys()):
+            total = total + [i]
             i = i + 1
         return total
         ########################################
@@ -484,8 +499,6 @@ class SAR_Project:
         i = 0
         j = 0
         salt = 5
-        p1 = self.idToindex(p1)
-        p2 = self.idToindex(p2)
 
         while i < len(p1) and j < len(p2):
             if  (p1[i]) == (p2[j]):
@@ -505,7 +518,7 @@ class SAR_Project:
                 else:
                     j = j + 1
                 
-        return self.indexToID(total)
+        return total
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
@@ -527,8 +540,6 @@ class SAR_Project:
         total = []
         i = 0
         j = 0
-        p1 = self.idToindex(p1)
-        p2 = self.idToindex(p2)
 
         while i < len(p1) and j < len(p2):
             # print(p1[i])
@@ -553,7 +564,7 @@ class SAR_Project:
             j = j + 1
 
                 
-        return self.indexToID(total)
+        return total
         
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
@@ -580,17 +591,17 @@ class SAR_Project:
         ## COMPLETAR PARA TODAS LAS VERSIONES SI ES NECESARIO ##
         ########################################################
 
-    def idToindex(self, l):
-        indices = []
-        for item in l:
-            indices = indices + [self.indexID[item]]
-        return indices
+    # def idToindex(self, l):
+    #     indices = []
+    #     for item in l:
+    #         indices = indices + [self.indexID[item]]
+    #     return indices
 
-    def indexToID(self, l):
-        IDs = []
-        for item in l:
-            IDs = IDs + [self.totalIdNoticias[item]]
-        return IDs
+    # def indexToID(self, l):
+    #     IDs = []
+    #     for item in l:
+    #         IDs = IDs + [self.totalIdNoticias[item]]
+    #     return IDs
 
 
 
@@ -634,12 +645,91 @@ class SAR_Project:
         
         """
         result = self.solve_query(query)
+        
         if self.use_ranking:
             result = self.rank_result(result, query)   
+        
+        print("=====================================================")
+        print('Query: '+ query)
+        print('Number of results: ' + str(len(result)))
+        nNoticia = 1
+
+        for new in result:
+            score = 0
+            doc = self.news[new][0]
+            print(doc)
+            path = self.docs[doc]
+            print(path)
+            pos = self.news[new][1]
+            print(pos)
+
+            with open(path) as fh:
+                jlist = json.load(fh)
+
+            title = jlist[pos]['title']
+            keyWords = jlist[pos]['keywords']
+            date = jlist[pos]['date']
+            content = jlist[pos]['article']
+            print('#'+str(nNoticia))
+            print('Score: '+str(score))
+            print(str(new))
+            print('Date: '+date)
+            print('Title: '+title)
+            print('Keywords: '+keyWords)
+
+            queryTokens=self.tokenizer.sub(' ', query)
+            queryTokens=self.elimina.sub(' ', query).split()
+            
+            queryWords = []
+            no = False
+            for word in queryTokens:
+                if word == 'NOT':
+                    no = True
+                else:
+                    if not no:
+                        queryWords = queryWords + [word]
+                    else:
+                        no = False
+
+                        
+
+            docTokens = self.tokenize(content)
+            #Si es not isla, el snipet no tornara res, perque son les noticies que no
+            #tinguen isla, i en ixes noticies anem a buscar isla
+            snipets=[]
+
+            for w in queryWords:
+                try:
+                    wIndex = docTokens.index(w)
+                    inici=max(0,wIndex-5)
+                    fi=min(len(docTokens),wIndex+5)
+                    snipets = snipets + [str(docTokens[inici:fi])]
+                except ValueError:
+                    print("An exception occurred")
+                
+
+            for snipet in snipets:
+                print(snipet + ' ... ', end='')
+            
+            print("=====================================================")
+        nNoticia = nNoticia + 1
+                
+
+
+                
+
+            
+
+            
+
+
+
+            
 
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
+
 
 
 
