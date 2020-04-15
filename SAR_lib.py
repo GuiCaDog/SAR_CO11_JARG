@@ -154,7 +154,7 @@ class SAR_Project:
                     self.index_file(fullname)
                     self.docs[self.numDoc] = fullname
                     self.numDoc = self.numDoc + 1
-        print(self.index)
+        #print(self.index)
         ##########################################
         ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
         ##########################################
@@ -186,7 +186,6 @@ class SAR_Project:
             #idNoticia = str(self.numDoc) +'.'+ str(numNoticia)
             #self.indexID[idNoticia] = self.totalNoticias
             self.news[self.totalNoticias]=[self.numDoc, numNoticia]
-            self.totalNoticias = self.totalNoticias + 1
             #self.totalIdNoticias = self.totalIdNoticias + [idNoticia]
             
             # COMPLETAR: asignar identificador a la noticia 'new'
@@ -203,6 +202,8 @@ class SAR_Project:
                     if ultim != self.totalNoticias:
                         self.index[token] = tokensIndex + [self.totalNoticias]
             numNoticia = numNoticia + 1
+            self.totalNoticias = self.totalNoticias + 1
+
             #hmmm
         
 
@@ -343,7 +344,7 @@ class SAR_Project:
             else:
                 token = token.lower()
                 postingListToken = self.get_posting(token)
-                print(postingListToken)
+                #print(postingListToken)
                 if n:
                     postingListToken = self.reverse_posting(postingListToken)
                     n = False
@@ -356,7 +357,7 @@ class SAR_Project:
                 noticies = postingListToken
    
         #print(noticies)
-        print(len(noticies))
+        #print(len(noticies))
         return noticies
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
@@ -645,10 +646,13 @@ class SAR_Project:
         
         """
         result = self.solve_query(query)
-        
+        if not self.show_all:
+            result = result[0:99]
+
         if self.use_ranking:
             result = self.rank_result(result, query)   
         
+        print(result)
         print("=====================================================")
         print('Query: '+ query)
         print('Number of results: ' + str(len(result)))
@@ -657,62 +661,72 @@ class SAR_Project:
         for new in result:
             score = 0
             doc = self.news[new][0]
-            print(doc)
             path = self.docs[doc]
-            print(path)
             pos = self.news[new][1]
-            print(pos)
 
             with open(path) as fh:
                 jlist = json.load(fh)
-
+            
             title = jlist[pos]['title']
             keyWords = jlist[pos]['keywords']
             date = jlist[pos]['date']
             content = jlist[pos]['article']
-            print('#'+str(nNoticia))
-            print('Score: '+str(score))
-            print(str(new))
-            print('Date: '+date)
-            print('Title: '+title)
-            print('Keywords: '+keyWords)
 
-            queryTokens=self.tokenizer.sub(' ', query)
-            queryTokens=self.elimina.sub(' ', query).split()
-            
-            queryWords = []
-            no = False
-            for word in queryTokens:
-                if word == 'NOT':
-                    no = True
-                else:
-                    if not no:
-                        queryWords = queryWords + [word]
-                    else:
-                        no = False
-
-                        
-
-            docTokens = self.tokenize(content)
-            #Si es not isla, el snipet no tornara res, perque son les noticies que no
-            #tinguen isla, i en ixes noticies anem a buscar isla
-            snipets=[]
-
-            for w in queryWords:
-                try:
-                    wIndex = docTokens.index(w)
-                    inici=max(0,wIndex-5)
-                    fi=min(len(docTokens),wIndex+5)
-                    snipets = snipets + [str(docTokens[inici:fi])]
-                except ValueError:
-                    print("An exception occurred")
+            if self.show_snippet:
+                print('#'+str(nNoticia))
+                print('Score: '+str(score))
+                print(str(new))
+                print('Date: '+date)
+                print('Title: '+title)
+                print('Keywords: '+keyWords)
                 
+                queryTokens=self.tokenizer.sub(' ', query)
+                queryTokens=self.elimina.sub(' ', query).split()
+                
+                queryWords = []
+                no = False
+                for word in queryTokens:
+                    if word == 'NOT':
+                        no = True
+                    else:
+                        if not no:
+                            queryWords = queryWords + [word]
+                        else:
+                            no = False
 
-            for snipet in snipets:
-                print(snipet + ' ... ', end='')
-            
-            print("=====================================================")
-        nNoticia = nNoticia + 1
+                            
+
+                docTokens = self.tokenize(content)
+                #Si es not isla, el snipet no tornara res, perque son les noticies que no
+                #tinguen isla, i en ixes noticies anem a buscar isla
+                snipets=[]
+
+                for w in queryWords:
+                    try:
+                        wIndex = docTokens.index(w)
+                        inici=max(0,wIndex-5)
+                        fi=min(len(docTokens),wIndex+5)
+                        snipets = snipets + [str(docTokens[inici:fi])]
+                    except ValueError:
+                        pass
+                    
+
+                for snipet in snipets:
+                    
+                    print((" ".join(snipet))+ ' ... ', end='')
+                
+                print('')
+                if not nNoticia == len(result):
+                    print("=====================================================")
+            else:
+                print('#'+str(nNoticia) + '\t' + '('+str(score)+')'+ ' ('+ str(new)+') (' + date+') '+ title + ' ('+keyWords+')')
+                if not nNoticia == len(result):
+                    print("--------------")
+
+            nNoticia = nNoticia + 1
+                
+        print("=====================================================")        
+    
                 
 
 
