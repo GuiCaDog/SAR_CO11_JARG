@@ -58,6 +58,7 @@ if __name__ == "__main__":
     searcher.set_ranking(args.rank)
     searcher.set_showall(args.all)
     searcher.set_snippet(args.snippet)
+    
 
 
     # se debe contar o mostrar resultados?
