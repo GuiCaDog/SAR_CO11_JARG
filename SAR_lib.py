@@ -54,7 +54,15 @@ class SAR_Project:
             'keywords': {},
             'date': {}
         } # hash para el indice invertido de stems --> clave: stem, valor: lista con los terminos que tienen ese stem
-        self.ptindex = {} # hash para el indice permuterm.
+        self.ptindex = {} # hash para consulta->permuterms.
+        self.permToToken={} #hash para permuterm->token
+        self.permFieldCount = {
+            'article': 0,
+            'title': 0,
+            'summary': 0,
+            'keywords': 0,
+            'date': 0
+        }
         self.docs = {} # diccionario de terminos --> clave: entero(docid),  valor: ruta del fichero.
         self.weight = {} # hash de terminos para el pesado, ranking de resultados. puede no utilizarse
         self.news = {} # hash de noticias --> clave entero (newid), valor: la info necesaria para diferenciar la noticia dentro de su fichero
@@ -66,6 +74,7 @@ class SAR_Project:
         self.use_stemming = False # valor por defecto, se cambia con self.set_stemming()
         self.use_ranking = False  # valor por defecto, se cambia con self.set_ranking()
         self.use_multifield = False # 
+        self.use_permuterm = False 
         self.numDoc = 0 # Contador del documento
         self.totalNoticias = 0
         self.totalIdNoticias = []
@@ -142,6 +151,10 @@ class SAR_Project:
 
         self.use_multifield = v
 
+    def set_permuterm(self, v):
+
+        self.use_permuterm = v
+
 
 
     ###############################
@@ -165,6 +178,7 @@ class SAR_Project:
         self.stemming = args['stem']
         self.permuterm = args['permuterm']
 
+        self.set_permuterm(self.permuterm)
         self.set_multifield(self.multifield)
 
         for dir, subdirs, files in os.walk(root):
@@ -181,6 +195,8 @@ class SAR_Project:
         self.set_stemming(self.stemming)
         if self.use_stemming:
             self.make_stemming()
+        if self.use_permuterm:
+            self.make_permuterm()
         
 
     def index_file(self, filename):
@@ -382,13 +398,39 @@ class SAR_Project:
         #despres, fem una cerca dicotoimica de les permutacions que comencen per a$b, i per cada permutacio es guardem la paraula real
         #per a la consulta a*b, enjuntem les noticies de totes ixes paraules reals
         #
+        #--------------------------------------------------------------------------------------------------
+        #
+        #--------------------------------------------------------------------------------------------------
+        for field in self.index.keys():
+            for key in self.index[field].keys():
+                permuterms = self.getPermuterms(key)
+                self.permFieldCount[field] = self.permFieldCount[field] + len(permuterms)
+                for pterm in permuterms:
+                    self.permToToken[pterm] = key
+                    prefix = pterm[0:2]
+                    self.ptindex[prefix] = self.ptindex.get(prefix, []) + [pterm]
+        for key in self.ptindex.keys():
+            self.ptindex[key] = sorted(self.ptindex[key])
+
         pass
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
 
 
+    def getPermuterms(self, word):
 
+        i = 0
+        term = '$' + word
+        permuterms = [term]
+        while i < len(word):
+            pre = word[0:i+1]
+            suf = '$' + word[i+1:len(word)]
+            permuterms = permuterms + [pre+suf]
+            i = i + 1
+        return permuterms
+
+        
 
     def show_stats(self):
         """
@@ -488,10 +530,28 @@ class SAR_Project:
                     token = token[1]
                 # print(field)
                 # print(token)
+
+
                 if self.use_stemming:
-                    postingListToken = self.get_stemming(token,field)
+
+                    if self.use_permuterm:
+                        tokens = self.get_permuterm(token)
+                        for token in tokens:
+                            postingListToken = postingListToken + [self.get_stemming(token, field)]
+                        postingListToken = sorted(set(postingListToken))
+                    else:
+                        postingListToken = self.get_stemming(token,field)
+
                 else:
-                    postingListToken = self.get_posting(token, field)
+
+                    if self.use_permuterm:
+                        tokens = self.get_permuterm(token)
+                        for token in tokens:
+                            postingListToken = postingListToken + [self.get_posting(token, field)]
+                        postingListToken = sorted(set(postingListToken))
+                    else:
+                        postingListToken = self.get_posting(token, field)
+
                 print(postingListToken)
                 if n:
                     postingListToken = self.reverse_posting(postingListToken)
@@ -589,7 +649,35 @@ class SAR_Project:
         return: posting list
 
         """
+        if '?' in term or '*' in term:
+            tokens = []
+            postings = []
+            pterm = term.split('?')
+            if len(pterm) == 1:
+                pterm = term.split('*')
 
+            permuterm = pterm[1] + '$' + pterm[0]
+            permuterms = self.ptindex[permuterm[0:2]]
+            i = 0
+            while i < len(permuterms) and permuterms[i] <= permuterm:
+                if permuterms[i].startswith(permuterm):
+                    tokens = tokens + [self.permToToken[permuterms[i]]]
+            
+            # for token in tokens:
+            #     postings = postings + [self.get_posting(token,field)]
+
+            # postings = sorted(set(postings))
+
+            #return postings
+            return tokens
+
+
+
+
+        else:
+            #returm self.get_posting(term, field)
+            return term
+        
         ##################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA PERMUTERM ##
         ##################################################
