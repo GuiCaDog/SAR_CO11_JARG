@@ -463,6 +463,18 @@ class SAR_Project:
                 print("\'summary\': "+str(len(self.sindex['summary'].keys())))
             print("-----------------------------------------------------")
 
+        if self.use_permuterm:
+            print("PERMUTERM: ")
+            print("\'article\': "+str(self.permFieldCount['article']))
+            if self.use_multifield:
+                print("\'title\': "+str(self.permFieldCount['title']))
+                print("\'date\': "+str(self.permFieldCount['date']))
+                print("\'keywords\': "+str(self.permFieldCount['keywords']))
+                print("\'summary\': "+str(self.permFieldCount['summary']))
+            print("-----------------------------------------------------")
+            
+
+
         
         
         print("Positional queries are NOT allowed.")
