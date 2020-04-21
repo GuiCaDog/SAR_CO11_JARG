@@ -4,6 +4,7 @@ import os
 import re
 import time
 import math
+import operator
 
 class SAR_Project:
     """
@@ -73,6 +74,8 @@ class SAR_Project:
             'keywords': {},
             'date': {}
             } # hash de terminos para el pesado, ranking de resultados. puede no utilizarse
+        self.termFreq = {
+        } 
         self.news = {} # hash de noticias --> clave entero (newid), valor: la info necesaria para diferenciar la noticia dentro de su fichero
         self.tokenizer = re.compile("\W+") # expresion regular para hacer la tokenizacion
         self.elimina = re.compile("[AND|OR]")
@@ -206,9 +209,17 @@ class SAR_Project:
         if self.use_permuterm:
             self.make_permuterm()
 
-        for field in self.index.keys():
-            for token in self.index[field].keys():
-                self.weight[field][token] = math.log(self.totalNoticias/len(self.index[field][token]))
+        for new in self.termFreq.keys():
+            for field in self.termFreq[new].keys():
+                for token in self.termFreq[new][field].keys():
+                    
+                    term = (1 + math.log(self.termFreq[new][field][token]))
+                    index = math.log(self.totalNoticias/len(self.index[field][token]))
+                    self.termFreq[new][field][token] = (1 + math.log(self.termFreq[new][field][token])) * math.log(self.totalNoticias/len(self.index[field][token]))
+
+            
+        
+
 
         
 
@@ -234,7 +245,13 @@ class SAR_Project:
         numNoticia = 0
         for new in jlist:
 
-            
+            self.termFreq[self.totalNoticias] = {
+                'article': {},
+                'title': {},
+                'summary': {},
+                'keywords': {},
+                'date': {}
+            }
             #idNoticia = str(self.numDoc) +'.'+ str(numNoticia)
             #self.indexID[idNoticia] = self.totalNoticias
             self.news[self.totalNoticias]=[self.numDoc, numNoticia]
@@ -251,6 +268,9 @@ class SAR_Project:
             tokens = self.tokenize(content)
             for token in tokens:
                 tokensIndex = (self.index['article'].get(token, []))
+
+                self.termFreq[self.totalNoticias]['article'][token] = self.termFreq[self.totalNoticias]['article'].get(token,0) + 1
+               
                 if len(tokensIndex) == 0:
                     self.index['article'][token] = tokensIndex + [self.totalNoticias]
                 else:    
@@ -263,6 +283,9 @@ class SAR_Project:
                 #-------------------------------------TITLE------------------------------------------
                 tokens = self.tokenize(title1)
                 for token in tokens:
+
+                    self.termFreq[self.totalNoticias]['title'][token] = self.termFreq[self.totalNoticias]['title'].get(token,0) + 1
+
                     tokensIndex = (self.index['title'].get(token, []))
                     if len(tokensIndex) == 0:
                         self.index['title'][token] = tokensIndex + [self.totalNoticias]
@@ -275,6 +298,9 @@ class SAR_Project:
                 #-------------------------------------SUMMARY-------------------------------------------
                 tokens = self.tokenize(summary1)
                 for token in tokens:
+
+                    self.termFreq[self.totalNoticias]['summary'][token] = self.termFreq[self.totalNoticias]['summary'].get(token,0) + 1
+
                     tokensIndex = (self.index['summary'].get(token, []))
                     if len(tokensIndex) == 0:
                         self.index['summary'][token] = tokensIndex + [self.totalNoticias]
@@ -287,6 +313,9 @@ class SAR_Project:
                 #-------------------------------------KEYWORDS-------------------------------------------
                 tokens = self.tokenize(keywords1)
                 for token in tokens:
+
+                    self.termFreq[self.totalNoticias]['keywords'][token] = self.termFreq[self.totalNoticias]['keywords'].get(token,0) + 1
+
                     tokensIndex = (self.index['keywords'].get(token, []))
                     if len(tokensIndex) == 0:
                         self.index['keywords'][token] = tokensIndex + [self.totalNoticias]
@@ -298,6 +327,9 @@ class SAR_Project:
 
                 #-------------------------------------DATE-------------------------------------------
                 tokensIndex = (self.index['date'].get(date1, []))
+
+                self.termFreq[self.totalNoticias]['date'][token] = self.termFreq[self.totalNoticias]['date'].get(token,0) + 1
+
                 if len(tokensIndex) == 0:
                     self.index['date'][date1] = tokensIndex + [self.totalNoticias]
                 else:    
@@ -987,7 +1019,7 @@ class SAR_Project:
             result = result[0:99]
 
         if self.use_ranking:
-            result = self.rank_result(result, query)   
+            result = self.rank_result(result, query) 
         
         #print(result)
         print("=====================================================")
@@ -995,8 +1027,12 @@ class SAR_Project:
         print('Number of results: ' + str(len(result)))
         nNoticia = 1
 
+        score = 0
         for new in result:
-            score = 0
+
+            if self.use_ranking:
+                score = score + 1
+
             doc = self.news[new][0]
             path = self.docs[doc]
             pos = self.news[new][1]
@@ -1125,6 +1161,73 @@ class SAR_Project:
         return: la lista de resultados ordenada
 
         """
+        queryTokens=self.elimina.sub(' ', query).split()
+        #print(queryTokens)
+        queryWords = []
+        no = False
+        for word in queryTokens:
+            if word == 'NOT':
+                no = True
+            else:
+                if not no:
+                    queryWords = queryWords + [word]
+                else:
+                    no = False
+
+        newsScore = {}
+
+        for w in queryWords:
+            w = w.lower().split(':')
+            if len(w) == 1:
+                w = w[0]
+                if '?' in w or '*' in w:
+                    for permToken in self.get_permuterm(w, 'article'):
+                        for new in result:
+                            newsScore[new] = newsScore.get(permToken, 0) + self.termFreq[new]['article'].get(permToken, 0)
+                else:
+                    for new in result:
+                        newsScore[new] = newsScore.get(w, 0) + self.termFreq[new]['article'].get(w, 0)
+
+
+            else:
+                w = w[1]
+                if '?' in w or '*' in w:
+                    for permToken in self.get_permuterm(w, w[0]):
+                        for new in result:
+                            newsScore[new] = newsScore.get(permToken, 0) + self.termFreq[new][w[0]].get(permToken, 0)
+                else:
+                    for new in result:
+                        newsScore[new] = newsScore.get(w, 0) + self.termFreq[new][w[0]].get(w, 0)
+
+        #newScoreOrdenat = list(dict.values())
+
+        
+        sortedDict = sorted(newsScore.items(), key=operator.itemgetter(1))
+
+        resultatsOrdenats = [sortedDict[len(sortedDict)-1][1]]
+        i = len(sortedDict) - 2
+
+        while i >= 0:
+            resultatsOrdenats.append(sortedDict[i][1])
+            i = i - 1
+
+        return resultatsOrdenats
+            
+        
+
+
+
+
+
+
+        
+
+        
+        
+        
+        
+
+
 
         return []
         
