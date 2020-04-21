@@ -417,42 +417,46 @@ class SAR_Project:
         
         totalTraduccio = 0
         totalGetPermuterms = 0  
-        totalIndexar = 0  
+        totalIndex = 0  
         totalGet = 0
         totalAppend = 0
         for field in self.index.keys():
+            
             t0 = time.time()
             for key in self.index[field].keys():
+                
                 t2 = time.time()
                 permuterms = self.getPermuterms(key)
                 t3 = time.time()
                 totalGetPermuterms = totalGetPermuterms + (t3-t2)
+                
                 self.permFieldCount[field] = self.permFieldCount[field] + len(permuterms)
+                
                 for pterm in permuterms:
                     #self.pterms = self.pterms + [pterm]
+
                     t4 = time.time()
                     self.permToToken[pterm] = key
                     t5 = time.time()
                     totalTraduccio = totalTraduccio + (t5-t4)
                     prefix = pterm[0:2]
 
-                    #if pterm not in self.ptindex.get(prefix,[]):
                     t6 = time.time()
-                    llista = self.ptindex.get(prefix, [])
-                    t7= time.time()
-                    totalGet = totalGet + (t7-t6)
-                    self.ptindex[prefix] = [pterm] + llista
-                    t8 = time.time()
-                    totalAppend = totalAppend + (t8-t7)
+                    l = self.ptindex.setdefault(prefix, [])
+                    l.append(pterm)
+                    t7 = time.time()
+                    totalIndex = totalIndex + (t7-t6)
+
                     #totalIndexar = totalIndexar + (t7-t6)
             t1 = time.time()
+
             print(field + "Time making permuterm: %2.2fs." % (t1 - t0))
             print()
         print("permuterm: " + str(totalGetPermuterms))
         print("traduccio: " + str(totalTraduccio))
-        #print("indexar: " + str(totalIndexar))
-        print("get: "+str(totalGet))
-        print("append: " + str(totalAppend))
+        print("indexar: " + str(totalIndex))
+        # print("get: "+str(totalGet))
+        # print("append: " + str(totalAppend))
         print(str(len(self.ptindex.keys())))
 
         # self.pterms = set(self.pterms)
