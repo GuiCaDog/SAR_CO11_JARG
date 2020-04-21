@@ -2,7 +2,8 @@ import json
 from nltk.stem.snowball import SnowballStemmer
 import os
 import re
-
+import time
+import math
 
 class SAR_Project:
     """
@@ -55,6 +56,7 @@ class SAR_Project:
             'date': {}
         } # hash para el indice invertido de stems --> clave: stem, valor: lista con los terminos que tienen ese stem
         self.ptindex = {} # hash para consulta->permuterms.
+        self.pterms = []
         self.permToToken={} #hash para permuterm->token
         self.permFieldCount = {
             'article': 0,
@@ -64,7 +66,13 @@ class SAR_Project:
             'date': 0
         }
         self.docs = {} # diccionario de terminos --> clave: entero(docid),  valor: ruta del fichero.
-        self.weight = {} # hash de terminos para el pesado, ranking de resultados. puede no utilizarse
+        self.weight = {
+            'article': {},
+            'title': {},
+            'summary': {},
+            'keywords': {},
+            'date': {}
+            } # hash de terminos para el pesado, ranking de resultados. puede no utilizarse
         self.news = {} # hash de noticias --> clave entero (newid), valor: la info necesaria para diferenciar la noticia dentro de su fichero
         self.tokenizer = re.compile("\W+") # expresion regular para hacer la tokenizacion
         self.elimina = re.compile("[AND|OR]")
@@ -197,6 +205,11 @@ class SAR_Project:
             self.make_stemming()
         if self.use_permuterm:
             self.make_permuterm()
+
+        for field in self.index.keys():
+            for token in self.index[field].keys():
+                self.weight[field][token] = math.log(self.totalNoticias/len(self.index[field][token]))
+
         
 
     def index_file(self, filename):
@@ -401,17 +414,59 @@ class SAR_Project:
         #--------------------------------------------------------------------------------------------------
         #
         #--------------------------------------------------------------------------------------------------
+        
+        totalTraduccio = 0
+        totalGetPermuterms = 0  
+        totalIndexar = 0  
+        totalGet = 0
+        totalAppend = 0
         for field in self.index.keys():
+            t0 = time.time()
             for key in self.index[field].keys():
+                t2 = time.time()
                 permuterms = self.getPermuterms(key)
+                t3 = time.time()
+                totalGetPermuterms = totalGetPermuterms + (t3-t2)
                 self.permFieldCount[field] = self.permFieldCount[field] + len(permuterms)
                 for pterm in permuterms:
+                    #self.pterms = self.pterms + [pterm]
+                    t4 = time.time()
                     self.permToToken[pterm] = key
+                    t5 = time.time()
+                    totalTraduccio = totalTraduccio + (t5-t4)
                     prefix = pterm[0:2]
-                    self.ptindex[prefix] = self.ptindex.get(prefix, []) + [pterm]
-        for key in self.ptindex.keys():
-            self.ptindex[key] = sorted(self.ptindex[key])
 
+                    #if pterm not in self.ptindex.get(prefix,[]):
+                    t6 = time.time()
+                    llista = self.ptindex.get(prefix, [])
+                    t7= time.time()
+                    totalGet = totalGet + (t7-t6)
+                    self.ptindex[prefix] = [pterm] + llista
+                    t8 = time.time()
+                    totalAppend = totalAppend + (t8-t7)
+                    #totalIndexar = totalIndexar + (t7-t6)
+            t1 = time.time()
+            print(field + "Time making permuterm: %2.2fs." % (t1 - t0))
+            print()
+        print("permuterm: " + str(totalGetPermuterms))
+        print("traduccio: " + str(totalTraduccio))
+        #print("indexar: " + str(totalIndexar))
+        print("get: "+str(totalGet))
+        print("append: " + str(totalAppend))
+        print(str(len(self.ptindex.keys())))
+
+        # self.pterms = set(self.pterms)
+        # print("-----------------------------longitud llista pterms------------------------------------")
+        # print(str(len(self.pterms)))
+
+        # totalHash = 0
+        # for key in self.ptindex.keys():
+        #     self.ptindex[key] = sorted(self.ptindex[key])
+        #     totalHash = totalHash + len(self.ptindex[key])
+        
+        # print("---------------------------longitud total del hash de pterms---------------------------- ")
+        # print(str(totalHash))
+        
         pass
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
@@ -419,16 +474,24 @@ class SAR_Project:
 
 
     def getPermuterms(self, word):
-
         i = 0
-        term = '$' + word
+        term = '$'+word  
         permuterms = [term]
         while i < len(word):
             pre = word[0:i+1]
-            suf = '$' + word[i+1:len(word)]
-            permuterms = permuterms + [pre+suf]
+            suf =  word[i+1:len(word)] + '$'
+            permuterms = permuterms + [suf + pre]
             i = i + 1
         return permuterms
+        # i = 0
+        # term = '$' + word
+        # permuterms = [term]
+        # while i < len(word):
+        #     pre = word[0:i+1]
+        #     suf = '$' + word[i+1:len(word)]
+        #     permuterms = permuterms + [pre+suf]
+        #     i = i + 1
+        # return permuterms
 
         
 
@@ -547,24 +610,32 @@ class SAR_Project:
                 if self.use_stemming:
 
                     if self.use_permuterm:
-                        tokens = self.get_permuterm(token)
-                        for token in tokens:
-                            postingListToken = postingListToken + [self.get_stemming(token, field)]
-                        postingListToken = sorted(set(postingListToken))
+                        if '?' not in token and '*' not in token:
+                            postingListToken = self.get_stemming(token, field)
+                        else:
+                            tokens = list(set(self.get_permuterm(token)))
+                            #print(str(len(tokens)))
+                            postingListToken = []
+                            for token in tokens:
+                                postingListToken = postingListToken + self.get_posting(token, field)
+                            postingListToken = sorted(list(set(postingListToken)))
                     else:
                         postingListToken = self.get_stemming(token,field)
 
                 else:
 
                     if self.use_permuterm:
-                        tokens = self.get_permuterm(token)
+                        tokens = list(set(self.get_permuterm(token)))
+                        #print(str(len(tokens)))
+                        postingListToken = []
                         for token in tokens:
-                            postingListToken = postingListToken + [self.get_posting(token, field)]
-                        postingListToken = sorted(set(postingListToken))
+                            postingListToken = postingListToken + self.get_posting(token, field)
+                        #print(postingListToken)
+                        postingListToken = sorted(list(set(postingListToken)))
                     else:
                         postingListToken = self.get_posting(token, field)
 
-                print(postingListToken)
+                #print(postingListToken)
                 if n:
                     postingListToken = self.reverse_posting(postingListToken)
                     n = False
@@ -576,7 +647,6 @@ class SAR_Project:
                     o = False
                 noticies = postingListToken
    
-        #print(noticies)
         #print(len(noticies))
         return noticies
         ########################################
@@ -661,34 +731,49 @@ class SAR_Project:
         return: posting list
 
         """
-        if '?' in term or '*' in term:
+        if '*' in term:
             tokens = []
-            postings = []
-            pterm = term.split('?')
-            if len(pterm) == 1:
-                pterm = term.split('*')
+            pterm = term.split('*')
 
             permuterm = pterm[1] + '$' + pterm[0]
+            
             permuterms = self.ptindex[permuterm[0:2]]
             i = 0
-            while i < len(permuterms) and permuterms[i] <= permuterm:
+            #print(permuterms[i] <= permuterm)
+            #print('bbbbbbbbbbb'+str(len(permuterms)))
+            while i < len(permuterms):
+                #print(permuterms[i].startswith(permuterm))
+                #print(permuterms[i]+'  '+permuterm)
                 if permuterms[i].startswith(permuterm):
+                #if permuterm in permuterms[i]:
                     tokens = tokens + [self.permToToken[permuterms[i]]]
+                    
+                i = i + 1
+            return list(set(tokens))
+
+        elif '?' in term:
+            tokens = []
+            pterm = term.split('?')
+
+            permuterm = pterm[1] + '$' + pterm[0]
             
-            # for token in tokens:
-            #     postings = postings + [self.get_posting(token,field)]
-
-            # postings = sorted(set(postings))
-
-            #return postings
-            return tokens
-
-
-
+            permuterms = self.ptindex[permuterm[0:2]]
+            i = 0
+            #print(permuterms[i] <= permuterm)
+            #print('bbbbbbbbbbb'+str(len(permuterms)))
+            while i < len(permuterms):
+                #print(permuterms[i].startswith(permuterm))
+                #print(permuterms[i]+'  '+permuterm)
+                if len(permuterms[i]) == (len(permuterm) + 1) and permuterms[i].startswith(permuterm):
+                #if permuterm in permuterms[i]:
+                    tokens = tokens + [self.permToToken[permuterms[i]]]
+                    
+                i = i + 1
+            return list(set(tokens))
 
         else:
             #returm self.get_posting(term, field)
-            return term
+            return [term]
         
         ##################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA PERMUTERM ##
@@ -900,7 +985,7 @@ class SAR_Project:
         if self.use_ranking:
             result = self.rank_result(result, query)   
         
-        print(result)
+        #print(result)
         print("=====================================================")
         print('Query: '+ query)
         print('Number of results: ' + str(len(result)))
@@ -930,7 +1015,7 @@ class SAR_Project:
                 
                 #queryTokens=self.tokenizer.sub(' ', query)
                 queryTokens=self.elimina.sub(' ', query).split()
-                print(queryTokens)
+                #print(queryTokens)
                 queryWords = []
                 no = False
                 for word in queryTokens:
@@ -959,18 +1044,25 @@ class SAR_Project:
                 #tinguen isla, i en ixes noticies anem a buscar isla
                 snipets=[]
 
-
                 for w in queryWords:
                     w = w.lower().split(':')
                     if len(w) == 1:
                         w = w[0]
+                        if '?' in w or '*' in w:
+                            queryWords = queryWords + self.get_permuterm(w, 'article')
                     else:
                         w = w[1]
+                        if '?' in w or '*' in w:
+                            queryWords = queryWords + self.get_permuterm(w, w[0])
+                            
+
+                for w in queryWords:
                     try:
                         if self.use_stemming:
                             stem = self.stemmer.stem(w)
                             wIndex = docStems.index(stem)
                         else:
+                            
                             wIndex = docTokens.index(w)
                         inici=max(0,wIndex-5)
                         fi=min(len(docTokens),wIndex+5)
@@ -1029,6 +1121,7 @@ class SAR_Project:
         return: la lista de resultados ordenada
 
         """
+
         return []
         
         ###################################################
