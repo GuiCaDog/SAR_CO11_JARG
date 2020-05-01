@@ -5,6 +5,12 @@ import re
 import time
 import math
 import operator
+#-------------NOMBRES---------------
+#-----Andreu Casamayor Segarra------
+#-----Jose Javier Calvo Moratilla---   
+#-----Raül Perelló Pinazo-----------
+#-----Guillem Calabuig Domenech-----
+#-----------------------------------
 
 class SAR_Project:
     """
@@ -17,7 +23,7 @@ class SAR_Project:
     Se pueden añadir nuevas variables y nuevos metodos
     Los metodos que se añadan se deberan documentar en el codigo y explicar en la memoria
     """
-
+    
     # lista de campos, el booleano indica si se debe tokenizar el campo
     # NECESARIO PARA LA AMPLIACION MULTIFIELD
     fields = [("title", True), ("date", False),
@@ -493,7 +499,7 @@ class SAR_Project:
         print(str(len(self.ptindex.keys())))
 
         # self.pterms = set(self.pterms)
-        # print("-----------------------------longitud llista pterms------------------------------------")
+        # print("-----------------------------longitud llista pterms--------------------------------------")
         # print(str(len(self.pterms)))
 
         # totalHash = 0
@@ -1195,14 +1201,14 @@ class SAR_Project:
 
 
             else:
-                w = w[1]
-                if '?' in w or '*' in w:
-                    for permToken in self.get_permuterm(w, w[0]):
+                word = w[1]
+                if '?' in word or '*' in word:
+                    for permToken in self.get_permuterm(word, w[0]):
                         for new in result:
                             newsScore[new] = newsScore.get(permToken, 0) + self.termFreq[new][w[0]].get(permToken, 0)
                 else:
                     for new in result:
-                        newsScore[new] = newsScore.get(w, 0) + self.termFreq[new][w[0]].get(w, 0)
+                        newsScore[new] = newsScore.get(word, 0) + self.termFreq[new][w[0]].get(word, 0)
 
         #newScoreOrdenat = list(dict.values())
 
